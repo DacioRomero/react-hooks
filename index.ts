@@ -1,118 +1,151 @@
 import { useState, ChangeEventHandler, SyntheticEvent } from 'react';
 
+type Optional<T> = T | undefined | null
+
 type Field = string
 type Value = any // eslint-disable-line @typescript-eslint/no-explicit-any
 
+type ExtractFields<S> = Extract<keyof S, Field>
+
 type State = Record<Field, Value>
-type VerifyErrors = Record<Field, string>
 
-type PotentialPromise<T> = Promise<T> | T
+type VerifyErrors<S extends State> = {
+  [F in ExtractFields<S>]?: string
+}
 
-type Verifier = (value: Value, otherValues: State) => PotentialPromise<string | void>
-export type Verifiers = Record<Field, Verifier>
-export type SubmitCallback = (state: State) => PotentialPromise<void>
+type Verifier<S extends State, F extends Field> = (value: S[F], otherValues: Omit<S, F>) => Promise<string | void>;
 
-type SetFieldCallback = (value: Value) => Value
-type SetField = (valueOrCB: SetFieldCallback | Value) => void
+export type Verifiers<S extends State> = {
+  [F in ExtractFields<S>]: Verifier<S, F>
+}
 
-export interface ControlledField {
-  set: SetField;
+export type SubmitCallback<S extends State> = (state: S) => Promise<void>
+
+type SetFieldCallback<V extends Value> = (value: V) => V
+
+type SetField<V extends Value> = (valueOrCB: SetFieldCallback<V> | V) => void;
+
+export interface ControlledField<V extends Value> {
+  set: SetField<V>;
   handleChange: ChangeEventHandler<HTMLInputElement>;
-  value: Value;
-  error?: string;
+  value: V;
+  verifyError?: string;
 }
 
-type ControlledFields = Record<string, ControlledField>
+type ControlledFields<S extends State> = {
+  [P in ExtractFields<S>]: ControlledField<S[P]>
+}
 
-type SyntheticEventHandler = (e: SyntheticEvent) => void
+type SyntheticEventHandler = (e: SyntheticEvent) => void | boolean
 
-interface Form {
-  fields: ControlledFields;
-  submit: VoidFunction;
+interface Config<S extends State> {
+  initialState: S;
+  verifiers?: Verifiers<S>;
+  submitCallback?: SubmitCallback<S>;
+}
+
+interface Form<S extends State> {
+  fields: ControlledFields<S>;
+  submit(): Promise<void>;
   handleSubmit: SyntheticEventHandler;
-  submitting: boolean;
-  clearErrors: VoidFunction;
+  isSubmitting: boolean;
+  clearErrors(): void;
 }
 
+// Used to ensure types
+type Keys<T> = Extract<keyof T, string>[]
+type Values<T> = T[Keys<T>[number]][]
+type Entries<T> = [Keys<T>[number], Values<T>[number]][]
 
-const initalErrors: VerifyErrors = {}
-const initalFields: ControlledFields = {}
-const initialErrors: PotentialPromise<VerifyErrors> = {}
+const entries = Object.entries as <T>(o: T) => Entries<T>
+const keys = Object.keys as <T>(o: T) => Keys<T>
+// const values = Object.values as <T>(o: T) => Values<T>
 
-export default function useForm (initalState: State, verifiers?: Verifiers, submitCallback?: SubmitCallback): Form {
-  const [state, setState] = useState(initalState)
-  const [errors, setErrors] = useState(initalErrors);
-  const [submitting, setSubmitting] = useState(false)
+export default function useForm<S extends State> ({ initialState, verifiers, submitCallback }: Config<S>): Form<S> {
+  type VES = VerifyErrors<S>
+  type CFS = ControlledFields<S>
+  type PCF = Partial<CFS>
+  type Fields = ExtractFields<S>
 
-  const setField = (field: Field): SetField => (valueOrCB): void => setState((prevState): State => ({
-    ...prevState,
-    [field]: valueOrCB instanceof Function ? valueOrCB(prevState[field]): valueOrCB
-  }))
+  const [state, setState] = useState(initialState)
+  const [verifyErrors, setVerifyErrors] = useState<VES>({});
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleFieldChange = (field: Field): ChangeEventHandler<HTMLInputElement> => (e): void => {
-    e.preventDefault()
-
-    const { value } = e.target
-
-    return setState((prevState): State => ({
+  function setField<F extends Fields>(field: F): SetField<S> {
+    return (valueOrCB): void => setState((prevState): S => ({
       ...prevState,
-      [field]: value
+      [field]: valueOrCB instanceof Function ? valueOrCB(prevState[field]): valueOrCB
     }))
   }
 
-  const fields = Object.entries(state)
-    .reduce((prev, [field, value]): ControlledFields => {
+  function handleFieldChange<F extends Fields>(field: F): ChangeEventHandler<HTMLInputElement> {
+    return (event): void => {
+      event.preventDefault()
+
+      const { value } = event.target
+
+      setState((prevState): S => ({
+        ...prevState,
+        [field]: value
+      }))
+    }
+  }
+
+  const fields = entries(state)
+    .reduce<PCF>((acc, [field, value]): PCF => {
       return {
-        ...prev,
+        ...acc,
         [field]: {
           set: setField(field),
           handleChange: handleFieldChange(field),
           value,
-          error: errors[field]
+          verifyError: verifyErrors[field]
         }
       }
-    }, initalFields)
+    }, {}) as CFS
 
-  const submit = async (): Promise<void> => {
-    let errors: VerifyErrors | undefined
+  async function submit(): Promise<void> {
+    let errors: Optional<VES>
 
     if (verifiers) {
-      errors = await Object.keys(state)
+      errors = await keys(state)
         .filter((field): boolean => verifiers.hasOwnProperty(field))
-        .reduce(async (prev, field): Promise<VerifyErrors> => {
+        .reduce<Promise<VES>>(async (accPromise, field): Promise<VES> => {
           const { [field]: value, ...otherValues } = state
 
           const error = await verifiers[field](value, otherValues)
-          const prevErrors = await prev
+          const acc = await accPromise
 
           if (error) {
             return {
-              ...prevErrors,
+              ...acc,
               [field]: error
             }
           }
 
-          return prevErrors
-        }, initialErrors)
+          return acc
+        }, Promise.resolve({}))
     }
 
-    setErrors(errors || {})
+    setVerifyErrors(errors || {})
 
     const noErrors = !errors || Object.keys(errors).length === 0
 
     if (submitCallback && noErrors) {
-      setSubmitting(true)
+      setIsSubmitting(true)
       await submitCallback(state)
-      setSubmitting(false)
+      setIsSubmitting(false)
     }
   }
 
-  const handleSubmit: SyntheticEventHandler = (e): void => {
+  function handleSubmit (e: SyntheticEvent): void {
     e.preventDefault()
     submit()
   }
 
-  const clearErrors = (): void => setErrors({})
+  function clearErrors(): void {
+    setVerifyErrors({})
+  }
 
-  return { fields, submit, handleSubmit, submitting, clearErrors }
+  return { fields, submit, handleSubmit, isSubmitting, clearErrors }
 }
