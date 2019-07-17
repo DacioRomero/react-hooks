@@ -1,50 +1,56 @@
 import { useState, ChangeEventHandler, SyntheticEvent } from 'react';
 
-type Optional<T> = T | undefined | null
+// Used to ensure types
+type Key<T> = Extract<keyof T, Field>
+type Values<T> = T[Key<T>]
+type Entries<T> = [Key<T>, Values<T>]
+type PotentialPromise<T> = T | Promise<T>
+
+const keys = Object.keys as <T>(o: T) => Key<T>[]
+// const values = Object.values as <T>(o: T) => Values<T>[]
+const entries = Object.entries as <T>(o: T) => Entries<T>[]
 
 type Field = string
-type Value = any // eslint-disable-line @typescript-eslint/no-explicit-any
+type Val = any // eslint-disable-line @typescript-eslint/no-explicit-any
 
-type ExtractFields<S> = Extract<keyof S, Field>
-
-type State = Record<Field, Value>
+type State = Record<Field, Val>
 
 type VerifyErrors<S extends State> = {
-  [F in ExtractFields<S>]?: string
+  [F in Key<S>]?: string
 }
 
-type Verifier<S extends State, F extends Field> = (value: S[F], otherValues: Omit<S, F>) => Promise<string | void>;
+export type Verifier<S extends State, F extends Field> = (value: S[F], otherValues: Omit<S, F>) => PotentialPromise<string | void>;
 
 export type Verifiers<S extends State> = {
-  [F in ExtractFields<S>]: Verifier<S, F>
+  [F in Key<S>]: Verifier<S, F>
 }
 
-export type SubmitCallback<S extends State> = (state: S) => Promise<void>
+export type SubmitCallback<S extends State> = (state: S) => PotentialPromise<void>
 
-type SetFieldCallback<V extends Value> = (value: V) => V
+type SetFieldCallback<V extends Val> = (value: V) => V
 
-type SetField<V extends Value> = (valueOrCB: SetFieldCallback<V> | V) => void;
+type SetField<V extends Val> = (valueOrCB: SetFieldCallback<V> | V) => void;
 
-export interface ControlledField<V extends Value> {
+export interface ControlledField<V extends Val> {
   set: SetField<V>;
   handleChange: ChangeEventHandler<HTMLInputElement>;
   value: V;
   verifyError?: string;
 }
 
-type ControlledFields<S extends State> = {
-  [P in ExtractFields<S>]: ControlledField<S[P]>
+export type ControlledFields<S extends State> = {
+  [P in Key<S>]: ControlledField<S[P]>
 }
 
-type SyntheticEventHandler = (e: SyntheticEvent) => void | boolean
+export type SyntheticEventHandler = (e: SyntheticEvent) => void | boolean
 
-interface Config<S extends State> {
+export interface Config<S extends State> {
   initialState: S;
   verifiers?: Verifiers<S>;
   submitCallback?: SubmitCallback<S>;
 }
 
-interface Form<S extends State> {
+export interface Form<S extends State> {
   fields: ControlledFields<S>;
   submit(): Promise<void>;
   handleSubmit: SyntheticEventHandler;
@@ -52,23 +58,14 @@ interface Form<S extends State> {
   clearErrors(): void;
 }
 
-// Used to ensure types
-type Keys<T> = Extract<keyof T, string>[]
-type Values<T> = T[Keys<T>[number]][]
-type Entries<T> = [Keys<T>[number], Values<T>[number]][]
-
-const entries = Object.entries as <T>(o: T) => Entries<T>
-const keys = Object.keys as <T>(o: T) => Keys<T>
-// const values = Object.values as <T>(o: T) => Values<T>
-
 export default function useForm<S extends State> ({ initialState, verifiers, submitCallback }: Config<S>): Form<S> {
-  type VES = VerifyErrors<S>
-  type CFS = ControlledFields<S>
-  type PCF = Partial<CFS>
-  type Fields = ExtractFields<S>
+  type VE = VerifyErrors<S>
+  type CF = ControlledFields<S>
+  type PCF = Partial<CF>
+  type Fields = Key<S>
 
   const [state, setState] = useState(initialState)
-  const [verifyErrors, setVerifyErrors] = useState<VES>({});
+  const [verifyErrors, setVerifyErrors] = useState<VE>({});
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   function setField<F extends Fields>(field: F): SetField<S> {
@@ -102,18 +99,18 @@ export default function useForm<S extends State> ({ initialState, verifiers, sub
           verifyError: verifyErrors[field]
         }
       }
-    }, {}) as CFS
+    }, {}) as CF
 
   async function submit(): Promise<void> {
-    let errors: Optional<VES>
+    let errors: VE = {}
 
     if (verifiers) {
       errors = await keys(state)
         .filter((field): boolean => verifiers.hasOwnProperty(field))
-        .reduce<Promise<VES>>(async (accPromise, field): Promise<VES> => {
+        .reduce<Promise<VE>>(async (accPromise, field): Promise<VE> => {
           const { [field]: value, ...otherValues } = state
 
-          const error = await verifiers[field](value, otherValues)
+          const error = await Promise.resolve(verifiers[field](value, otherValues))
           const acc = await accPromise
 
           if (error) {
@@ -127,13 +124,13 @@ export default function useForm<S extends State> ({ initialState, verifiers, sub
         }, Promise.resolve({}))
     }
 
-    setVerifyErrors(errors || {})
+    setVerifyErrors(errors)
 
-    const noErrors = !errors || Object.keys(errors).length === 0
+    const noErrors = Object.keys(errors).length === 0
 
     if (submitCallback && noErrors) {
       setIsSubmitting(true)
-      await submitCallback(state)
+      await Promise.resolve(submitCallback(state))
       setIsSubmitting(false)
     }
   }
