@@ -1,7 +1,7 @@
 import { useState, ChangeEventHandler, SyntheticEvent } from 'react';
 
 // Used to ensure types
-type Key<T> = Extract<keyof T, Field>
+type Key<T> = Extract<keyof T, PropertyKey>
 type Values<T> = T[Key<T>]
 type Entries<T> = [Key<T>, Values<T>]
 type PotentialPromise<T> = T | Promise<T>
@@ -10,16 +10,15 @@ const keys = Object.keys as <T>(o: T) => Key<T>[]
 // const values = Object.values as <T>(o: T) => Values<T>[]
 const entries = Object.entries as <T>(o: T) => Entries<T>[]
 
-type Field = string
-type Val = any // eslint-disable-line @typescript-eslint/no-explicit-any
+type PropertyValue = any // eslint-disable-line @typescript-eslint/no-explicit-any
 
-type State = Record<Field, Val>
+type State = Record<PropertyKey, PropertyValue>
 
 type VerifyErrors<S extends State> = {
   [F in Key<S>]?: string
 }
 
-export type Verifier<S extends State, F extends Field> = (value: S[F], otherValues: Omit<S, F>) => PotentialPromise<string | void>;
+export type Verifier<S extends State, K extends PropertyKey> = (value: S[K], otherValues: Omit<S, K>) => PotentialPromise<string | void>;
 
 export type Verifiers<S extends State> = {
   [F in Key<S>]: Verifier<S, F>
@@ -27,11 +26,11 @@ export type Verifiers<S extends State> = {
 
 export type SubmitCallback<S extends State> = (state: S) => PotentialPromise<void>
 
-type SetFieldCallback<V extends Val> = (value: V) => V
+type SetFieldCallback<V extends PropertyValue> = (value: V) => V
 
-type SetField<V extends Val> = (valueOrCB: SetFieldCallback<V> | V) => void;
+type SetField<V extends PropertyValue> = (valueOrCB: SetFieldCallback<V> | V) => void;
 
-export interface ControlledField<V extends Val> {
+export interface ControlledField<V extends PropertyValue> {
   set: SetField<V>;
   handleChange: ChangeEventHandler<HTMLInputElement>;
   value: V;
