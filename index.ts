@@ -1,135 +1,158 @@
-import { useState, ChangeEventHandler, SyntheticEvent } from 'react';
+import { useState, ChangeEventHandler, SyntheticEvent, InputHTMLAttributes } from 'react';
 
 // Used to ensure types
-type Key<T> = Extract<keyof T, PropertyKey>
-type Values<T> = T[Key<T>]
-type Entries<T> = [Key<T>, Values<T>]
-type PotentialPromise<T> = T | Promise<T>
-
-const keys = Object.keys as <T>(o: T) => Key<T>[]
-// const values = Object.values as <T>(o: T) => Values<T>[]
-const entries = Object.entries as <T>(o: T) => Entries<T>[]
+type Key<T> = Extract<keyof T, string>
+type Value<T> = T[Key<T>]
+type Entry<T> = [Key<T>, Value<T>]
 
 type PropertyValue = any // eslint-disable-line @typescript-eslint/no-explicit-any
-
 type State = Record<PropertyKey, PropertyValue>
-
-type VerifyErrors<S extends State> = {
-  [F in Key<S>]?: string
-}
+type PotentialPromise<T> = T | Promise<T>
 
 export type Verifier<S extends State, K extends PropertyKey> = (value: S[K], otherValues: Omit<S, K>) => PotentialPromise<string | void>;
 
 export type Verifiers<S extends State> = {
-  [F in Key<S>]: Verifier<S, F>
+  readonly [F in Key<S>]: Verifier<S, F>
 }
 
-export type SubmitCallback<S extends State> = (state: S) => PotentialPromise<void>
+type FieldErrors<S extends State> = {
+  readonly [F in Key<S>]?: string
+}
+
+export type VerifyCallback<S extends State> = (state: S) => PotentialPromise<void>
+export type ErrorParser<S extends State> = (e: unknown) => PotentialPromise<void | FieldErrors<S>>
+
+export interface Config<S extends State> {
+  readonly initialState: S;
+  readonly verifiers?: Verifiers<S>;
+  readonly verifyCallback?: VerifyCallback<S>;
+  readonly handleErrors?: ErrorParser<S>;
+}
 
 type SetFieldCallback<V extends PropertyValue> = (value: V) => V
-
 type SetField<V extends PropertyValue> = (valueOrCB: SetFieldCallback<V> | V) => void;
 
-export interface ControlledField<V extends PropertyValue> {
-  set: SetField<V>;
-  handleChange: ChangeEventHandler<HTMLInputElement>;
-  value: V;
-  verifyError?: string;
+export interface Field<V extends PropertyValue> {
+  readonly set: SetField<V>;
+  readonly handleChange: ChangeEventHandler<{ value: V }>;
+  readonly value: V;
+  readonly verifyError?: string;
+  readonly postError?: string;
 }
 
-export type ControlledFields<S extends State> = {
-  [P in Key<S>]: ControlledField<S[P]>
+export type Fields<S extends State> = {
+  readonly [P in Key<S>]: Field<S[P]>
 }
 
 export type SyntheticEventHandler = (e: SyntheticEvent) => void | boolean
 
-export interface Config<S extends State> {
-  initialState: S;
-  verifiers?: Verifiers<S>;
-  submitCallback?: SubmitCallback<S>;
-}
-
 export interface Form<S extends State> {
-  fields: ControlledFields<S>;
-  submit(): Promise<void>;
-  handleSubmit: SyntheticEventHandler;
-  isSubmitting: boolean;
-  clearErrors(): void;
+  readonly fields: Fields<S>;
+  readonly submit: () => Promise<void>;
+  readonly handleSubmit: SyntheticEventHandler;
+  readonly isSubmitting: boolean;
+  readonly clearErrors: () => void;
 }
 
-export default function useForm<S extends State> ({ initialState, verifiers, submitCallback }: Config<S>): Form<S> {
-  type VE = VerifyErrors<S>
-  type CF = ControlledFields<S>
+const keys = Object.keys as <T>(o: T) => Key<T>[]
+// const values = Object.values as <T>(o: T) => Values<T>[]
+const entries = Object.entries as <T>(o: T) => Entry<T>[]
+
+const emptyObj: object = Object.freeze(Object.create(null))
+
+export default function useForm<S extends State> ({
+  initialState,
+  verifiers,
+  verifyCallback,
+  handleErrors
+}: Config<S>): Form<S> {
+  type FE = FieldErrors<S>
+  type CF = Fields<S>
   type PCF = Partial<CF>
-  type Fields = Key<S>
+  type K = Key<S>
 
   const [state, setState] = useState(initialState)
-  const [verifyErrors, setVerifyErrors] = useState<VE>({});
+  const [verifyErrors, setVerifyErrors] = useState<FE>(emptyObj);
+  const [postErrors, setPostErrors] = useState<FE>(emptyObj);
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  function setField<F extends Fields>(field: F): SetField<S> {
-    return (valueOrCB): void => setState((prevState): S => ({
-      ...prevState,
-      [field]: valueOrCB instanceof Function ? valueOrCB(prevState[field]): valueOrCB
-    }))
+  function setField<F extends K>(field: F): SetField<S[F]> {
+    return (valueOrCB): void => setState((prevState): S => {
+      const value = valueOrCB instanceof Function ? valueOrCB(prevState[field]): valueOrCB
+
+      return Object.freeze({
+        ...prevState,
+        [field]: value
+      })
+    })
   }
 
-  function handleFieldChange<F extends Fields>(field: F): ChangeEventHandler<HTMLInputElement> {
+  function handleFieldChange<F extends K>(field: F): ChangeEventHandler<{ value: S[F] }> {
     return (event): void => {
       event.preventDefault()
 
+      if(event.target.value) {
+
+      }
+
       const { value } = event.target
 
-      setState((prevState): S => ({
+      setState((prevState): S => Object.freeze({
         ...prevState,
         [field]: value
       }))
     }
   }
 
-  const fields = entries(state)
-    .reduce<PCF>((acc, [field, value]): PCF => {
-      return {
-        ...acc,
-        [field]: {
-          set: setField(field),
-          handleChange: handleFieldChange(field),
-          value,
-          verifyError: verifyErrors[field]
-        }
-      }
-    }, {}) as CF
+  const fields = entries(state).reduce<PCF>((acc, [field, value]): PCF => Object.freeze<PCF>({
+    ...acc,
+    [field]: Object.freeze({
+      set: setField(field),
+      handleChange: handleFieldChange(field),
+      value,
+      verifyError: verifyErrors[field],
+      postError: postErrors[field]
+    })
+  }) as PCF, emptyObj) as CF
 
   async function submit(): Promise<void> {
-    let errors: VE = {}
+    const verifyErrors: FE = verifiers ?
+      await keys(state).reduce<Promise<FE>>(async (acc, field): Promise<FE> => {
+        if (!verifiers.hasOwnProperty(field)) {
+          return await acc
+        }
 
-    if (verifiers) {
-      errors = await keys(state)
-        .filter((field): boolean => verifiers.hasOwnProperty(field))
-        .reduce<Promise<VE>>(async (accPromise, field): Promise<VE> => {
-          const { [field]: value, ...otherValues } = state
+        const { [field]: value, ...otherValues } = state
 
-          const error = await Promise.resolve(verifiers[field](value, otherValues))
-          const acc = await accPromise
+        const error = await Promise.resolve(verifiers[field](value, otherValues))
 
-          if (error) {
-            return {
-              ...acc,
-              [field]: error
-            }
-          }
+        if (!error) {
+          return await acc
+        }
 
-          return acc
-        }, Promise.resolve({}))
-    }
+        return Object.freeze({
+          ...await acc,
+          [field]: error
+        })
+      }, Promise.resolve(emptyObj)):
+      emptyObj
 
-    setVerifyErrors(errors)
+    setVerifyErrors(verifyErrors)
 
-    const noErrors = Object.keys(errors).length === 0
+    const noErrors = Object.keys(verifyErrors).length === 0
 
-    if (submitCallback && noErrors) {
+    if (verifyCallback && noErrors) {
       setIsSubmitting(true)
-      await Promise.resolve(submitCallback(state))
+
+      try {
+        await Promise.resolve(verifyCallback(state))
+      } catch (e) {
+        // Ensure errors ojbect
+        const postErrors: FE = handleErrors && Object.freeze(await Promise.resolve(handleErrors(e))) || emptyObj
+
+        setPostErrors(postErrors)
+      }
+
       setIsSubmitting(false)
     }
   }
@@ -140,7 +163,8 @@ export default function useForm<S extends State> ({ initialState, verifiers, sub
   }
 
   function clearErrors(): void {
-    setVerifyErrors({})
+    setVerifyErrors(emptyObj)
+    setPostErrors(emptyObj)
   }
 
   return { fields, submit, handleSubmit, isSubmitting, clearErrors }
