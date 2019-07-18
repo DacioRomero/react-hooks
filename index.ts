@@ -60,7 +60,7 @@ const entries = Object.entries as <T>(o: T) => Entry<T>[]
 
 const emptyObj: object = Object.freeze(Object.create(null))
 
-export default function useForm<S extends State> ({
+export default function useForm<S extends State = State> ({
   initialState,
   verifiers,
   verifyCallback,
