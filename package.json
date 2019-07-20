@@ -1,0 +1,17 @@
+{
+  "name": "@dacio/react-hooks",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:DacioRomero/react-hooks.git",
+  "author": "Dacio Romero <dacioromero@gmail.com>",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6"
+  },
+  "devDependencies": {
+    "@types/react": "^16.8.23",
+    "@types/react-dom": "^16.8.4",
+    "typescript": "^3.5.3"
+  }
+}
