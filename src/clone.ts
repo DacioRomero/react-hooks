@@ -7,7 +7,7 @@ import { useMemo, useState, useRef, useCallback, useEffect } from "react";
 type UseEffect = typeof useEffect
 type Deps = Parameters<UseEffect>[1]
 
-function useDepsUpdated (deps: Deps): boolean {
+function useDoUpdate (deps: Deps): boolean {
   // Using a ref to prevent rerenders
   const ref = useRef(deps)
 
@@ -43,12 +43,13 @@ function useDepsUpdated (deps: Deps): boolean {
 type Cleanup = () => void
 
 export const useFakeEffect: UseEffect = (effect, deps): void => {
-  const depsUpdated = useDepsUpdated(deps)
+  const doUpdate = useDoUpdate(deps)
   const cleanupRef = useRef<Cleanup>()
   const firstCallRef = useRef(true)
 
 
   function update(): void {
+    // Run effect after update
     setTimeout((): void => {
       const { current: cleanup } = cleanupRef
 
@@ -60,12 +61,13 @@ export const useFakeEffect: UseEffect = (effect, deps): void => {
     }, 0)
   }
 
+  // Update on first call
   if (firstCallRef.current) {
     firstCallRef.current = false
     return update()
   }
 
-  if (depsUpdated) {
+  if (doUpdate) {
     return update()
   }
 }
@@ -74,9 +76,9 @@ type UseMemo = typeof useMemo
 
 export const useFakeMemo: UseMemo = (factory, deps): ReturnType<typeof factory> => {
   const [state, setState] = useState(factory)
-  const depsUpdated = useDepsUpdated(deps)
+  const doUpdate = useDoUpdate(deps)
 
-  if (depsUpdated) {
+  if (doUpdate) {
     const newState = factory()
     setState(newState)
 
@@ -88,4 +90,6 @@ export const useFakeMemo: UseMemo = (factory, deps): ReturnType<typeof factory> 
 
 type UseCallback = typeof useCallback
 
+// > useCallback(fn, deps) is equivalent to useMemo(() => fn, deps).
+// - https://reactjs.org/docs/hooks-reference.html#usecallback
 export const useFakeCallback: UseCallback = (callback, deps): typeof callback => useFakeMemo((): typeof callback => callback, deps)
