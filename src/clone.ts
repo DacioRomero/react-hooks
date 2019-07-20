@@ -4,69 +4,26 @@ import { useMemo, useState, useRef, useCallback, useEffect } from "react";
 //   return useState({ current: initialValue })[0]
 // }
 
-export const useFakeMemo: typeof useMemo = (factory, deps) => {
-  const [value, setValue] = useState(factory)
-
-  // Might not be called first run
-  useFakeEffect(() => {
-    setValue(factory())
-  }, deps)
-
-  return value
-}
-
-export const useFakeCallback: typeof useCallback = (callback, deps) => {
-  return useFakeMemo(() => callback, deps)
-}
-
 type UseEffect = typeof useEffect
-type UseEffectParameters = Parameters<UseEffect>
+type Deps = Parameters<UseEffect>[1]
 
-interface EffectRef {
-  prevDeps: UseEffectParameters[1];
-  cleanup: ReturnType<UseEffectParameters[0]>;
-}
-
-// TODO: Call cleanup on unmount
-export const useFakeEffect: UseEffect = (effect, deps) => {
+function useDepsUpdated (deps: Deps): boolean {
   // Using a ref to prevent rerenders
-  const ref = useRef<EffectRef>({
-    prevDeps: deps,
-    cleanup: undefined
-  })
+  const ref = useRef(deps)
 
   const {
-    current: {
-      prevDeps,
-      cleanup
-    }
+    current: prevDeps
   } = ref
-
-  function update () {
-    if (cleanup) {
-      cleanup()
-    }
-
-    ref.current = {
-      prevDeps: deps,
-      cleanup: effect()
-    }
-  }
 
   if (!prevDeps) {
     if (deps) {
       throw new Error('Cannot add deps after init')
     } else {
       // Update every time with no deps
-      return update()
+      return true
     }
   } else if (!deps) {
     throw new Error('Cannot remove deps after init')
-  }
-
-  // Run update on first call, potentially hacky
-  if (deps === prevDeps) {
-    return update()
   }
 
   if (deps.length !== prevDeps.length) {
@@ -77,6 +34,58 @@ export const useFakeEffect: UseEffect = (effect, deps) => {
   const depsChanged = prevDeps.some((value, index) => value !== deps[index])
 
   if (depsChanged) {
+    return true
+  }
+
+  return false
+}
+
+type Cleanup = () => void
+
+export const useFakeEffect: UseEffect = (effect, deps): void => {
+  const depsUpdated = useDepsUpdated(deps)
+  const cleanupRef = useRef<Cleanup>()
+  const firstCallRef = useRef(true)
+
+
+  function update(): void {
+    setTimeout((): void => {
+      const { current: cleanup } = cleanupRef
+
+      if (cleanup) {
+        cleanup()
+      }
+
+      cleanupRef.current = effect() || undefined
+    }, 0)
+  }
+
+  if (firstCallRef.current) {
+    firstCallRef.current = false
+    return update()
+  }
+
+  if (depsUpdated) {
     return update()
   }
 }
+
+type UseMemo = typeof useMemo
+
+export const useFakeMemo: UseMemo = (factory, deps): ReturnType<typeof factory> => {
+  const [state, setState] = useState(factory)
+  const depsUpdated = useDepsUpdated(deps)
+
+  if (depsUpdated) {
+    const newState = factory()
+    setState(newState)
+
+    return newState
+  }
+
+  return state
+}
+
+type UseCallback = typeof useCallback
+
+export const useFakeCallback: UseCallback = (callback, deps): typeof callback => useFakeMemo((): typeof callback => callback, deps)
