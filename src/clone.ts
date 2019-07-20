@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useCallback } from "react";
+import { useMemo, useState, useRef, useCallback, useEffect } from "react";
 
 // export const useFakeRef: typeof useRef = (initialValue) => {
 //   return useState({ current: initialValue })[0]
@@ -6,6 +6,19 @@ import { useMemo, useState, useRef, useCallback } from "react";
 
 export const useFakeMemo: typeof useMemo = (factory, deps) => {
   const [value, setValue] = useState(factory)
+
+  useFakeEffect(() => {
+    setValue(factory())
+  }, deps)
+
+  return value
+}
+
+export const useFakeCallback: typeof useCallback = (callback, deps) => {
+  return useFakeMemo(() => callback, deps)
+}
+
+export const useFakeEffect: typeof useEffect = (effect, deps) => {
   const depsRef = useRef(deps)
 
   const { current: prevDeps } = depsRef
@@ -14,7 +27,7 @@ export const useFakeMemo: typeof useMemo = (factory, deps) => {
     if (deps instanceof Array) {
       throw new Error('Cannot add deps after init')
     } else {
-      return value
+      return effect()
     }
   } else if (!(deps instanceof Array)) {
     throw new Error('Cannot remove deps after init')
@@ -29,17 +42,8 @@ export const useFakeMemo: typeof useMemo = (factory, deps) => {
 
     if (depsChanged) {
       depsRef.current = prevDeps
-      const newValue = factory()
 
-      setValue(newValue)
-
-      return newValue
+      return effect()
     }
   }
-
-  return value
-}
-
-export const useFakeCallback: typeof useCallback = (callback, deps) => {
-  return useFakeMemo(() => callback, deps)
 }
