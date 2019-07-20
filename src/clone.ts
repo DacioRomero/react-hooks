@@ -7,6 +7,7 @@ import { useMemo, useState, useRef, useCallback, useEffect } from "react";
 export const useFakeMemo: typeof useMemo = (factory, deps) => {
   const [value, setValue] = useState(factory)
 
+  // Might not be called first run
   useFakeEffect(() => {
     setValue(factory())
   }, deps)
@@ -18,32 +19,64 @@ export const useFakeCallback: typeof useCallback = (callback, deps) => {
   return useFakeMemo(() => callback, deps)
 }
 
-export const useFakeEffect: typeof useEffect = (effect, deps) => {
-  const depsRef = useRef(deps)
+type UseEffect = typeof useEffect
+type UseEffectParameters = Parameters<UseEffect>
 
-  const { current: prevDeps } = depsRef
+interface EffectRef {
+  prevDeps: UseEffectParameters[1];
+  cleanup: ReturnType<UseEffectParameters[0]>;
+}
 
-  if (prevDeps === undefined) {
-    if (deps instanceof Array) {
+// TODO: Call cleanup on unmount
+export const useFakeEffect: UseEffect = (effect, deps) => {
+  // Using a ref to prevent rerenders
+  const ref = useRef<EffectRef>({
+    prevDeps: deps,
+    cleanup: undefined
+  })
+
+  const {
+    current: {
+      prevDeps,
+      cleanup
+    }
+  } = ref
+
+  function update () {
+    if (cleanup) {
+      cleanup()
+    }
+
+    ref.current = {
+      prevDeps: deps,
+      cleanup: effect()
+    }
+  }
+
+  if (!prevDeps) {
+    if (deps) {
       throw new Error('Cannot add deps after init')
     } else {
-      return effect()
+      // Update every time with no deps
+      return update()
     }
-  } else if (!(deps instanceof Array)) {
+  } else if (!deps) {
     throw new Error('Cannot remove deps after init')
   }
 
-  if (deps !== prevDeps) {
-    if (deps.length !== prevDeps.length) {
-      throw new Error('Cannot change number of deps after init')
-    }
+  // Run update on first call, potentially hacky
+  if (deps === prevDeps) {
+    return update()
+  }
 
-    const depsChanged = prevDeps.some((value, index) => value !== deps[index])
+  if (deps.length !== prevDeps.length) {
+    throw new Error('Cannot change number of deps after init')
+  }
 
-    if (depsChanged) {
-      depsRef.current = prevDeps
+  // Empty array with return false
+  const depsChanged = prevDeps.some((value, index) => value !== deps[index])
 
-      return effect()
-    }
+  if (depsChanged) {
+    return update()
   }
 }
