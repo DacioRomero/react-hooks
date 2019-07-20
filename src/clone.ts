@@ -25,15 +25,15 @@ export const useFakeMemo: typeof useMemo = (factory, deps) => {
       throw new Error('Cannot change number of deps after init')
     }
 
-    for (let i = 0; i < deps.length; i++) {
-      if (deps[i] !== prevDeps[i]) {
-        depsRef.current = prevDeps
-        const newValue = factory()
+    const depsChanged = prevDeps.some((value, index) => value !== deps[index])
 
-        setValue(newValue)
+    if (depsChanged) {
+      depsRef.current = prevDeps
+      const newValue = factory()
 
-        return newValue
-      }
+      setValue(newValue)
+
+      return newValue
     }
   }
 
