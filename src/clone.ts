@@ -1,15 +1,20 @@
 import { useMemo, useState, useRef, useCallback, useEffect } from "react";
 
-// export const useFakeRef: typeof useRef = (initialValue) => {
-//   return useState({ current: initialValue })[0]
-// }
+type UseRef = typeof useRef
+
+// > useRef() is basically useState({current: initialValue })[0]
+// https://twitter.com/dan_abramov/status/1099842565631819776
+export const useFakeRef: UseRef = (initialValue?: any) => {
+  return useState({ current: initialValue })[0]
+}
 
 type UseEffect = typeof useEffect
 type Deps = Parameters<UseEffect>[1]
 
-function useDoUpdate (deps: Deps): boolean {
+function useDoUpdate (deps:
+  Deps): boolean {
   // Using a ref to prevent rerenders
-  const ref = useRef(deps)
+  const ref = useFakeRef(deps)
 
   const {
     current: prevDeps
@@ -31,7 +36,7 @@ function useDoUpdate (deps: Deps): boolean {
   }
 
   // Empty array with return false
-  const depsChanged = prevDeps.some((value, index) => value !== deps[index])
+  const depsChanged = prevDeps.some((value, index): boolean => value !== deps[index])
 
   if (depsChanged) {
     return true
@@ -44,8 +49,8 @@ type Cleanup = () => void
 
 export const useFakeEffect: UseEffect = (effect, deps): void => {
   const doUpdate = useDoUpdate(deps)
-  const cleanupRef = useRef<Cleanup>()
-  const firstCallRef = useRef(true)
+  const cleanupRef = useFakeRef<Cleanup>()
+  const firstCallRef = useFakeRef(true)
 
 
   function update(): void {
