@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 
 export function useRandom (): number {
-  return useMemo(() => Math.random(), [])
+  return useMemo((): number => Math.random(), [])
 }
 
 export function useOdds (odds: number): boolean {

@@ -4,7 +4,8 @@ type UseRef = typeof useRef
 
 // > useRef() is basically useState({current: initialValue })[0]
 // https://twitter.com/dan_abramov/status/1099842565631819776
-export const useFakeRef: UseRef = (initialValue?: any) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const useFakeRef: UseRef = (initialValue?: any): any => {
   return useState({ current: initialValue })[0]
 }
 
@@ -12,7 +13,7 @@ type UseEffect = typeof useEffect
 type Deps = Parameters<UseEffect>[1]
 
 function useDoUpdate (deps:
-  Deps): boolean {
+Deps): boolean {
   // Using a ref to prevent rerenders
   const ref = useFakeRef(deps)
 
