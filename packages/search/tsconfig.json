@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "lib": [
+      "dom",
+      "es2019.object",
+      "dom.iterable"
+    ]
+  },
+  "files": [
+    "src/index.ts"
+  ]
+}

@@ -2,23 +2,12 @@
   "compilerOptions": {
     "target": "es5",
     "module": "commonjs",
-    "lib": [
-      "es2015",
-      // "es2016.array.include",
-      // "es2019.object",
-      "dom",
-      // "dom.iterable",
-    ],
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "outDir": "dist",
     "strict": true,
     "noImplicitAny": true,
     "esModuleInterop": true,
     "noImplicitReturns": true
-  },
-  "files": [
-    "src/index.ts"
-  ]
+  }
 }

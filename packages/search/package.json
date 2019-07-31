@@ -1,0 +1,35 @@
+{
+  "name": "@dacio/react-usesearch",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dacioromero/react-hooks.git"
+  },
+  "author": "Dacio Romero <dacioromero@gmail.com> (dacio.dev)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dacioromero/react-hooks/issues"
+  },
+  "homepage": "https://github.com/dacioromero/react-hooks/tree/master/packages/search#readme",
+  "devDependencies": {
+    "@types/react": "^16.8.23",
+    "@types/react-dom": "^16.8.5",
+    "@types/react-router": "^5.0.3",
+    "@types/wu": "^2.1.39",
+    "typescript": "^3.5.3"
+  },
+  "peerDependencies": {
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6",
+    "react-router": "^5.0.1"
+  },
+  "dependencies": {
+    "wu": "^2.1.0"
+  }
+}
