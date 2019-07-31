@@ -5,9 +5,16 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "lerna exec --no-bail yarn build"
+    "build": "lerna exec --no-bail yarn build",
+    "lint": "eslint --ext .js,.ts packages",
+    "prettier:check": "prettier --check \"packages/**/*.ts\" \"packages/**/*.js\"",
+    "prettier:write": "prettier --write \"packages/**/*.ts\" \"packages/**/*.js\""
   },
   "devDependencies": {
-    "lerna": "^3.16.4"
+    "@typescript-eslint/eslint-plugin": "^1.13.0",
+    "@typescript-eslint/parser": "^1.13.0",
+    "eslint": "^6.1.0",
+    "lerna": "^3.16.4",
+    "prettier": "^1.18.2"
   }
 }

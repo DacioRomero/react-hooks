@@ -1,16 +1,24 @@
-import { useContext, useMemo, useState } from "react";
-import { __RouterContext } from "react-router";
+import { useContext, useMemo, useState } from 'react'
+import { __RouterContext } from 'react-router'
 import { filter } from 'wu'
 
-const fromEntries = Object.fromEntries as <T extends PropertyKey, K>(entries: Iterable<readonly [T, K]>) => { [P in T]: K }
+const fromEntries = Object.fromEntries as <T extends PropertyKey, K>(
+  entries: Iterable<readonly [T, K]>
+) => { [P in T]: K }
 
 type Keys = string[]
 type Search<T extends Keys> = { [P in T[number]]?: string }
 type SetSearch = (search: string) => void
 
-function useSearch<T extends Keys>(search: string, setSearch: SetSearch, ...keys: T): Search<T> {
+function useSearch<T extends Keys>(
+  search: string,
+  setSearch: SetSearch,
+  ...keys: T
+): Search<T> {
   const params = useMemo(() => new URLSearchParams(search), [search])
-  const dict = fromEntries(filter(([key]) => keys.includes(key), params)) as Search<T>
+  const dict = fromEntries(
+    filter(([key]) => keys.includes(key), params)
+  ) as Search<T>
 
   return new Proxy(dict, {
     set(_, prop: string, value: string) {
@@ -29,7 +37,7 @@ export const useRouterSearch: UseSearch = (...keys) => {
     history: { push }
   } = useContext(__RouterContext)
 
-  const setSearch: SetSearch = (search) => {
+  const setSearch: SetSearch = search => {
     push({ search })
   }
 
@@ -43,7 +51,7 @@ export const useWindowSearch: UseSearch = (...keys) => {
 
   const [, forceUpdate] = useState()
 
-  const setSearch: SetSearch = (search) =>  {
+  const setSearch: SetSearch = search => {
     window.location.search = search
     forceUpdate(undefined)
   }

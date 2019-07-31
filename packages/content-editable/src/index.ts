@@ -1,25 +1,23 @@
-import {
-  useRef,
-  SyntheticEvent,
-  Ref
-} from 'react'
+import { useRef, SyntheticEvent, Ref } from 'react'
 
-interface BasicElement { innerText: string }
+interface BasicElement {
+  innerText: string
+}
 
 interface Config<T extends BasicElement> {
-  value: string;
-  onChange(e: SyntheticEvent<T> & { target: { value: string } }): void;
+  value: string
+  onChange(e: SyntheticEvent<T> & { target: { value: string } }): void
 }
 
 type SyntheticEventHandler<T> = (e: SyntheticEvent<T>) => void
 
 interface ContentEditable<T> {
-  ref: Ref<T | undefined>;
-  onInput: SyntheticEventHandler<T>;
+  ref: Ref<T | undefined>
+  onInput: SyntheticEventHandler<T>
 }
 
 // WIP
-export function useContentEditable<T extends BasicElement> ({
+export function useContentEditable<T extends BasicElement>({
   value,
   onChange
 }: Config<T>): ContentEditable<T> {
@@ -38,7 +36,7 @@ export function useContentEditable<T extends BasicElement> ({
       return
     }
 
-    onChange ({
+    onChange({
       ...e,
       target: {
         ...e.target,
