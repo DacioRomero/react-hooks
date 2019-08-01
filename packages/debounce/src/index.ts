@@ -11,7 +11,7 @@ export function useDebounce<T extends (...args: unknown[]) => unknown>(
       clearTimeout(timeoutRef.current)
 
       // TODO: Figure out how to use normal setTimeout with window
-      timeoutRef.current = window.setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         func(...args)
       }, wait)
     },

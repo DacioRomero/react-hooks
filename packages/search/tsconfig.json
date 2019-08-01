@@ -3,9 +3,17 @@
   "compilerOptions": {
     "outDir": "dist",
     "lib": [
-      "dom",
+      "es2015",
+      "es2016.array.include",
       "es2019.object",
+      "dom",
       "dom.iterable"
+    ],
+    "types": [
+      "react",
+      "react-dom",
+      "react-router",
+      "wu"
     ]
   },
   "files": [
