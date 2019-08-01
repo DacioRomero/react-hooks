@@ -1,11 +1,10 @@
 {
-  "name": "root",
   "private": true,
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "build": "lerna exec --no-bail yarn build",
+    "prepare": "lerna run prepare",
     "lint": "eslint --ext .js,.ts packages",
     "prettier:check": "prettier --check \"packages/**/*.ts\" \"packages/**/*.js\"",
     "prettier:write": "prettier --write \"packages/**/*.ts\" \"packages/**/*.js\""
