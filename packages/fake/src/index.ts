@@ -1,4 +1,11 @@
-import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
+import {
+  useMemo,
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  DependencyList
+} from 'react'
 
 type UseRef = typeof useRef
 
@@ -12,9 +19,8 @@ export const useFakeRef: UseRef = (
 }
 
 type UseEffect = typeof useEffect
-type Deps = Parameters<UseEffect>[1]
 
-function useDoUpdate(deps: Deps): boolean {
+function useDoUpdate(deps?: DependencyList): boolean {
   // Using a ref to prevent rerenders
   const ref = useFakeRef(deps)
 
@@ -35,16 +41,8 @@ function useDoUpdate(deps: Deps): boolean {
     throw new Error('Cannot change number of deps after init')
   }
 
-  // Empty array with return false
-  const depsChanged = prevDeps.some(
-    (value, index): boolean => value !== deps[index]
-  )
-
-  if (depsChanged) {
-    return true
-  }
-
-  return false
+  // Empty array will return false
+  return prevDeps.some((value, index): boolean => value !== deps[index])
 }
 
 type Cleanup = () => void
